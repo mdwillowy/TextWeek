@@ -1,0 +1,217 @@
+:root {
+  --bg-soft: #f5f2ec;
+  --bg-strong: #ece4d9;
+  --surface: #ffffff;
+  --surface-muted: #f8f6f2;
+  --text: #1f1f1f;
+  --muted: #6f6b64;
+  --accent: #126a64;
+  --accent-hover: #0e5651;
+  --line: #ded8ce;
+  --error: #b4262a;
+  --shadow: 0 14px 32px rgba(31, 31, 31, 0.09);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Public Sans', 'Segoe UI', sans-serif;
+  color: var(--text);
+  background: var(--bg-soft);
+  min-height: 100vh;
+  line-height: 1.45;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+.app-page {
+  min-height: 100dvh;
+  width: 100%;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.app-page--marketing,
+.app-page--app,
+.app-page--settings {
+  background:
+    linear-gradient(115deg, rgba(8, 8, 10, 0.56), rgba(12, 13, 16, 0.36)),
+    url('/pexels-diva.jpg');
+}
+
+body[data-theme='light'] .app-page--marketing,
+body[data-theme='light'] .app-page--app,
+body[data-theme='light'] .app-page--settings {
+  background:
+    linear-gradient(115deg, rgba(245, 242, 236, 0.6), rgba(232, 239, 234, 0.5)),
+    url('/pexels-diva.jpg');
+}
+
+.site-header {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(255, 239, 225, 0.28);
+  border-radius: 14px;
+  background: rgba(7, 8, 10, 0.38);
+  backdrop-filter: blur(6px);
+}
+
+.site-brand {
+  color: #c57a4a;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  font-size: 1.25rem;
+  text-transform: uppercase;
+}
+
+.site-header-copy {
+  margin: 0;
+  color: rgba(255, 239, 223, 0.9);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.site-nav a,
+.site-nav button {
+  color: rgba(248, 234, 222, 0.92);
+}
+
+body[data-theme='light'] .site-header {
+  border-color: rgba(190, 173, 154, 0.45);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+body[data-theme='light'] .site-header-copy,
+body[data-theme='light'] .site-nav a,
+body[data-theme='light'] .site-nav button {
+  color: #4e4a44;
+}
+
+@media (max-width: 760px) {
+  .site-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .site-nav {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 0.6rem;
+  }
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent), white 22%);
+  outline-offset: 1px;
+}
+
+.screen-loader {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-ghost {
+  border: 0;
+  border-radius: 12px;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-report-pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.admin-pagination-meta {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.admin-pagination-btn {
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--line);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-ghost:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

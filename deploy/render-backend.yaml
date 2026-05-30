@@ -1,0 +1,62 @@
+services:
+  - type: web
+    name: textweek-backend
+    runtime: node
+    rootDir: backend
+    plan: starter
+    autoDeploy: true
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5050
+      - key: TRUST_PROXY
+        value: true
+      - key: RETENTION_RUN_ON_STARTUP
+        value: true
+      - key: RETENTION_INTERVAL_HOURS
+        value: 24
+      - key: RETENTION_DAYS
+        value: 7
+      - key: LOG_LEVEL
+        value: info
+      - key: ENABLE_NEW_REGISTRATIONS
+        value: true
+      - key: FEATURE_READ_RECEIPTS
+        value: true
+      - key: FEATURE_ONLINE_STATUS
+        value: true
+      - key: FEATURE_E2EE
+        value: true
+      - key: COOKIE_SECURE
+        value: true
+      - key: COOKIE_SAME_SITE
+        value: none
+      - key: REQUEST_BODY_LIMIT
+        value: 100kb
+      - key: RATE_LIMIT_AUTH_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_AUTH_MAX
+        value: 30
+      - key: RATE_LIMIT_MESSAGE_WINDOW_MS
+        value: 60000
+      - key: RATE_LIMIT_MESSAGE_MAX
+        value: 45
+      - key: RATE_LIMIT_SEARCH_WINDOW_MS
+        value: 60000
+      - key: RATE_LIMIT_SEARCH_MAX
+        value: 40
+      - key: RATE_LIMIT_FOLLOW_WINDOW_MS
+        value: 60000
+      - key: RATE_LIMIT_FOLLOW_MAX
+        value: 40
+      - key: RATE_LIMIT_REPORT_WINDOW_MS
+        value: 600000
+      - key: RATE_LIMIT_REPORT_MAX
+        value: 20
+      # Set these in dashboard as secret values
+      # DATABASE_URL, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET,
+      # INTERNAL_JOB_TOKEN, CORS_ALLOWED_ORIGINS, SOCKET_CORS_ORIGIN
