@@ -6,23 +6,37 @@ import { getBlockRelationship } from '../utils/blocking.js';
 export async function reportUser(req, res, next) {
   try {
     const reporterId = req.authUser._id;
-    const { targetUserId, reason, details } = req.body;
+    const { targetUserId, targetUsername, reason, details } = req.body;
+    let resolvedTargetId = targetUserId || '';
 
-    if (String(reporterId) === String(targetUserId)) {
+    if (!resolvedTargetId && targetUsername) {
+      const normalizedUsername = String(targetUsername || '').trim().toLowerCase();
+      const targetByUsername = await User.findOne({ username: normalizedUsername }).select('_id');
+      if (!targetByUsername) {
+        return res.status(404).json({ success: false, message: 'Target user not found' });
+      }
+      resolvedTargetId = targetByUsername._id;
+    }
+
+    if (!resolvedTargetId) {
+      return res.status(400).json({ success: false, message: 'Target user is required' });
+    }
+
+    if (String(reporterId) === String(resolvedTargetId)) {
       return res.status(400).json({
         success: false,
         message: 'You cannot report yourself',
       });
     }
 
-    const target = await User.findById(targetUserId).select('_id');
+    const target = await User.findById(resolvedTargetId).select('_id');
     if (!target) {
       return res.status(404).json({ success: false, message: 'Target user not found' });
     }
 
     await UserReport.create({
       reporter: reporterId,
-      targetUser: targetUserId,
+      targetUser: resolvedTargetId,
       reason,
       details: details || '',
     });

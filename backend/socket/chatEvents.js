@@ -296,6 +296,8 @@ export function registerChatEvents({ io, socket, emitToChat, emitToUser }) {
       return;
     }
 
+    const readReceiptsEnabled = env.featureReadReceipts && (socket.authUser?.settings?.readReceiptsEnabled ?? true);
+
     const query = {
       chat: chat._id,
       sender: { $ne: userId },
@@ -325,7 +327,9 @@ export function registerChatEvents({ io, socket, emitToChat, emitToUser }) {
       readAt: new Date().toISOString(),
     };
 
-    emitToChat(chatId, 'message:read:update', payload, userId);
+    if (readReceiptsEnabled) {
+      emitToChat(chatId, 'message:read:update', payload, userId);
+    }
 
     if (unreadBefore > 0) {
       emitToUser(userId, 'chat:updated', {

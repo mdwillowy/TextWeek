@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getAdminReports } from '../api/admin';
+import { approveDeletionRequest, cancelDeletionRequest, getAdminReports, getDeletionRequests } from '../api/admin';
 import { resolveUploadImageUrl } from '../utils/uploadUrl';
 
 function formatDate(value) {
@@ -64,6 +64,10 @@ function AdminDashboard() {
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deletionRequests, setDeletionRequests] = useState([]);
+  const [deletionError, setDeletionError] = useState('');
+  const [deletionLoading, setDeletionLoading] = useState(true);
+  const [deletionActionId, setDeletionActionId] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [total, setTotal] = useState(0);
@@ -100,16 +104,125 @@ function AdminDashboard() {
     };
   }, [page, pageSize]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDeletionRequests() {
+      try {
+        setDeletionLoading(true);
+        setDeletionError('');
+        const response = await getDeletionRequests({ page: 1, pageSize: 20 });
+        const rows = response?.data?.users || [];
+        if (isMounted) {
+          setDeletionRequests(rows);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setDeletionError(err?.response?.data?.message || 'Unable to load deletion requests');
+        }
+      } finally {
+        if (isMounted) {
+          setDeletionLoading(false);
+        }
+      }
+    }
+
+    loadDeletionRequests();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  async function handleApproveDeletion(userId) {
+    if (!userId) return;
+    const confirmed = window.confirm('Approve and permanently delete this account?');
+    if (!confirmed) return;
+
+    setDeletionActionId(userId);
+    setDeletionError('');
+    try {
+      await approveDeletionRequest(userId);
+      setDeletionRequests((prev) => prev.filter((row) => row.id !== userId));
+    } catch (err) {
+      setDeletionError(err?.response?.data?.message || 'Unable to approve deletion request');
+    } finally {
+      setDeletionActionId('');
+    }
+  }
+
+  async function handleCancelDeletion(userId) {
+    if (!userId) return;
+    const confirmed = window.confirm('Cancel this deletion request?');
+    if (!confirmed) return;
+
+    setDeletionActionId(userId);
+    setDeletionError('');
+    try {
+      await cancelDeletionRequest(userId);
+      setDeletionRequests((prev) => prev.filter((row) => row.id !== userId));
+    } catch (err) {
+      setDeletionError(err?.response?.data?.message || 'Unable to cancel deletion request');
+    } finally {
+      setDeletionActionId('');
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
 
   return (
     <section className="admin-dashboard-page">
-      <header className="admin-dashboard-header">
-        <h1>Admin Dashboard</h1>
-        <p>Moderation reports submitted by users.</p>
-      </header>
+      <section className="admin-deletion-section">
+        <header className="admin-section-header">
+          <h2>Account Deletion Requests</h2>
+          <p>Approve requests to permanently remove accounts.</p>
+        </header>
+
+        {deletionLoading ? <p className="screen-loader">Loading deletion requests...</p> : null}
+        {deletionError ? <p className="field-error">{deletionError}</p> : null}
+
+        {!deletionLoading && !deletionError && deletionRequests.length === 0 ? (
+          <p className="empty-state">No deletion requests pending.</p>
+        ) : null}
+
+        <div className="admin-deletion-list">
+          {deletionRequests.map((request) => (
+            <article className="admin-deletion-card" key={request.id}>
+              <div className="admin-deletion-main">
+                <strong>{request.fullName || 'Unknown user'}</strong>
+                <div className="admin-deletion-handle">@{request.username || 'unknown'}</div>
+                <small>Requested: {formatDate(request.deletionRequestedAt)}</small>
+              </div>
+              <div className="admin-deletion-actions">
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  onClick={() => handleCancelDeletion(request.id)}
+                  disabled={deletionActionId === request.id}
+                >
+                  {deletionActionId === request.id ? 'Updating...' : 'Cancel'}
+                </button>
+                <button
+                  className="btn-primary"
+                  type="button"
+                  onClick={() => handleApproveDeletion(request.id)}
+                  disabled={deletionActionId === request.id}
+                >
+                  {deletionActionId === request.id ? 'Deleting...' : 'Approve & Delete'}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="admin-reports-section">
+        <header className="admin-section-header">
+          <h2>Reports</h2>
+          <p>Moderation reports submitted by users.</p>
+        </header>
 
       {isLoading ? <p className="screen-loader">Loading reports...</p> : null}
       {error ? <p className="field-error">{error}</p> : null}
@@ -124,7 +237,7 @@ function AdminDashboard() {
         ))}
       </div>
 
-      <div className="admin-report-pagination">
+        <div className="admin-report-pagination">
         <span className="admin-pagination-meta">Page {page} / {totalPages}</span>
         <button
           type="button"
@@ -146,7 +259,8 @@ function AdminDashboard() {
         >
           &gt;
         </button>
-      </div>
+        </div>
+      </section>
     </section>
   );
 }

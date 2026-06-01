@@ -37,7 +37,7 @@ function HomePage() {
         latestUser = uploadResponse?.data?.data?.user || latestUser;
 
         // If a file is uploaded and URL was not changed by user, keep uploaded URL.
-        if (updates.avatarUrl === user.avatarUrl) {
+        if (updates.avatarUrl === user.avatarUrl || updates.avatarUrl === '') {
           delete updates.avatarUrl;
         }
       }

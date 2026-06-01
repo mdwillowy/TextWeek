@@ -75,11 +75,28 @@ body[data-theme='light'] .app-page--settings {
   color: var(--settings-text);
 }
 
+.settings-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.settings-card-head h2 {
+  margin: 0;
+}
+
+.settings-card-head p {
+  margin: 0.2rem 0 0;
+  color: var(--settings-muted);
+}
+
 .settings-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 
 .settings-group {
   display: grid;
@@ -151,12 +168,67 @@ body[data-theme='light'] .app-page--settings {
 }
 
 .settings-field input,
-.settings-field select {
+.settings-field select,
+.settings-field textarea {
   border: 1px solid var(--settings-field-line);
   border-radius: 10px;
   padding: 0.6rem;
   background: var(--settings-field-bg);
   color: var(--settings-text);
+}
+
+.settings-field textarea {
+  resize: vertical;
+}
+
+.settings-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-self: center;
+}
+
+.settings-card-actions--full {
+  justify-content: stretch;
+}
+
+.settings-card-actions--full .btn-primary,
+.settings-card-actions--full .btn-secondary {
+  width: 100%;
+}
+
+
+.settings-form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.6rem;
+}
+
+.settings-form-row .settings-field {
+  min-width: 0;
+}
+
+.theme-stack {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.theme-stack > span {
+  font-weight: 700;
+}
+
+.password-change-toggle {
+  white-space: nowrap;
+}
+
+.password-change-form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.password-change-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .theme-segment {
@@ -203,6 +275,7 @@ body[data-theme='light'] .app-page--settings {
   gap: 0.7rem;
 }
 
+
 .settings-note {
   color: var(--settings-muted);
 }
@@ -238,6 +311,7 @@ body[data-theme='light'] .app-page--settings {
   margin: 0.1rem 0;
 }
 
+
 @media (max-width: 740px) {
   .settings-shell {
     padding: 0.85rem;
@@ -256,6 +330,31 @@ body[data-theme='light'] .app-page--settings {
 
   .settings-row {
     gap: 0.7rem;
+  }
+
+  .settings-card-actions,
+  .password-change-actions {
+    justify-content: stretch;
+  }
+
+  .settings-card-actions .btn-primary,
+  .settings-card-actions .btn-secondary,
+  .password-change-actions .btn-primary {
+    width: 100%;
+  }
+
+  .settings-card-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+
+  .settings-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .report-toggle {
+    width: 100%;
   }
 }
 

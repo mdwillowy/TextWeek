@@ -9,3 +9,8 @@ export async function requestAccountDeletion(payload) {
   const response = await api.post('/users/me/request-deletion', payload);
   return response.data;
 }
+
+export async function changePassword(payload) {
+  const response = await api.post('/users/me/change-password', payload);
+  return response.data;
+}

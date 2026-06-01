@@ -114,20 +114,22 @@ Route: `/settings`
 - Theme mode toggle (light/dark/system)
 - Session security: logout all sessions
 - Account deletion request flow with password confirmation
-- Privacy explainer text
+- Report user form (username + reason)
 
 ## Moderation / Safety Baseline
-- Report user endpoint scaffold
+- Report user endpoint (username or user id)
 - User block/unblock/list endpoints scaffold
 - Block rules enforced for direct chat open/send paths
 - Admin reports endpoint: `GET /api/admin/reports`
 - Admin reports are paginated and rate-limited
 - Admin report access is logged to the server console (audit log)
+- Admin deletion request review: list, approve & delete, or cancel
 
 ## Admin Access
 - User role field: `role` (`user` or `admin`).
 - Admin dashboard route: `/admin` (UI access for admins only).
 - Admin dashboard is available from the Home topbar and opens in the dashboard modal.
+- Admins can review reports and handle account deletion requests.
 
 ## Incident Response Basics
 1. Identify active issue via structured logs and request IDs.

@@ -96,7 +96,8 @@ function toRealtimeMessage(messageDoc) {
   };
 }
 
-function toMessage(messageDoc, currentUserId) {
+function toMessage(messageDoc, currentUserId, allowReadReceipts = true) {
+  const readByOther = messageDoc.readBy?.some((id) => String(id) !== String(currentUserId)) || false;
   return {
     id: String(messageDoc._id),
     chatId: String(messageDoc.chat),
@@ -113,8 +114,19 @@ function toMessage(messageDoc, currentUserId) {
     replyTo: toReplyDTO(messageDoc.replyTo),
     reactions: toReactionDTO(messageDoc.reactions, currentUserId),
     isOwn: String(messageDoc.sender) === String(currentUserId),
-    isSeenByOther: messageDoc.readBy?.some((id) => String(id) !== String(currentUserId)) || false,
+    isSeenByOther: allowReadReceipts ? readByOther : false,
   };
+}
+
+function allowReadReceiptsForChat(chat, currentUserId) {
+  if (!chat || chat.chatType !== 'direct') {
+    return true;
+  }
+
+  const otherParticipant = chat.participants.find(
+    (participant) => String(participant?._id || participant) !== String(currentUserId)
+  );
+  return otherParticipant?.settings?.readReceiptsEnabled ?? true;
 }
 
 function toChatDTO(chat, currentUserId) {
@@ -133,7 +145,10 @@ function toChatDTO(chat, currentUserId) {
 }
 
 async function assertChatParticipant(chatId, userId) {
-  const chat = await Chat.findById(chatId).populate('participants', 'fullName username avatarUrl bio isOnline lastSeen settings.showOnlineStatus');
+  const chat = await Chat.findById(chatId).populate(
+    'participants',
+    'fullName username avatarUrl bio isOnline lastSeen settings.showOnlineStatus settings.readReceiptsEnabled'
+  );
 
   if (!chat) {
     return { error: { status: 404, message: 'Chat not found' } };
@@ -187,7 +202,9 @@ export async function createOrOpenDirectChat(req, res, next) {
       return res.status(400).json({ success: false, message: 'Cannot create direct chat with yourself' });
     }
 
-    const otherUser = await User.findById(otherUserId).select('fullName username avatarUrl bio isOnline lastSeen settings.showOnlineStatus');
+    const otherUser = await User.findById(otherUserId).select(
+      'fullName username avatarUrl bio isOnline lastSeen settings.showOnlineStatus settings.readReceiptsEnabled'
+    );
     if (!otherUser) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -195,7 +212,10 @@ export async function createOrOpenDirectChat(req, res, next) {
     const key = buildParticipantKey(currentUserId, otherUserId);
     const [p1, p2] = sortParticipantIds(currentUserId, otherUserId);
 
-    let chat = await Chat.findOne({ participantKey: key }).populate('participants', 'fullName username avatarUrl bio isOnline lastSeen settings.showOnlineStatus');
+    let chat = await Chat.findOne({ participantKey: key }).populate(
+      'participants',
+      'fullName username avatarUrl bio isOnline lastSeen settings.showOnlineStatus settings.readReceiptsEnabled'
+    );
 
     // Keep existing chats accessible even when users are blocked.
     if (chat) {
@@ -217,7 +237,10 @@ export async function createOrOpenDirectChat(req, res, next) {
       participants: [new mongoose.Types.ObjectId(p1), new mongoose.Types.ObjectId(p2)],
       chatType: 'direct',
     });
-    chat = await Chat.findById(chat._id).populate('participants', 'fullName username avatarUrl bio isOnline lastSeen settings.showOnlineStatus');
+    chat = await Chat.findById(chat._id).populate(
+      'participants',
+      'fullName username avatarUrl bio isOnline lastSeen settings.showOnlineStatus settings.readReceiptsEnabled'
+    );
 
     return res.json({
       success: true,
@@ -257,7 +280,7 @@ export async function listChats(req, res, next) {
 
     const chats = await Chat.find({ participants: currentUserId })
       .sort({ lastMessageAt: -1, updatedAt: -1 })
-      .populate('participants', 'fullName username avatarUrl bio isOnline lastSeen settings.showOnlineStatus')
+      .populate('participants', 'fullName username avatarUrl bio isOnline lastSeen settings.showOnlineStatus settings.readReceiptsEnabled')
       .lean();
 
     const chatIds = chats.map((chat) => chat._id);
@@ -319,10 +342,12 @@ export async function getMessages(req, res, next) {
     const hasMore = rows.length === limit;
     const ordered = rows.reverse();
 
+    const allowReadReceipts = allowReadReceiptsForChat(chat, currentUserId);
+
     return res.json({
       success: true,
       data: {
-        messages: ordered.map((msg) => toMessage(msg, currentUserId)),
+        messages: ordered.map((msg) => toMessage(msg, currentUserId, allowReadReceipts)),
       },
       meta: {
         limit,
@@ -428,11 +453,13 @@ export async function sendMessage(req, res, next) {
       message: toRealtimeMessage(message),
     });
 
+    const allowReadReceipts = allowReadReceiptsForChat(chat, currentUserId);
+
     return res.status(201).json({
       success: true,
       message: 'Message sent',
       data: {
-        message: toMessage(message.toObject(), currentUserId),
+        message: toMessage(message.toObject(), currentUserId, allowReadReceipts),
       },
     });
   } catch (err) {
@@ -515,11 +542,13 @@ export async function uploadChatImage(req, res, next) {
       message: toRealtimeMessage(message),
     });
 
+    const allowReadReceipts = allowReadReceiptsForChat(chat, currentUserId);
+
     return res.status(201).json({
       success: true,
       message: 'Image sent',
       data: {
-        message: toMessage(message.toObject(), currentUserId),
+        message: toMessage(message.toObject(), currentUserId, allowReadReceipts),
       },
     });
   } catch (err) {
@@ -572,11 +601,13 @@ export async function editMessage(req, res, next) {
       message: toRealtimeMessage(message),
     });
 
+    const allowReadReceipts = allowReadReceiptsForChat(chat, currentUserId);
+
     return res.json({
       success: true,
       message: 'Message edited',
       data: {
-        message: toMessage(message.toObject(), currentUserId),
+        message: toMessage(message.toObject(), currentUserId, allowReadReceipts),
       },
     });
   } catch (err) {
@@ -644,12 +675,14 @@ export async function reactToMessage(req, res, next) {
       message: toRealtimeMessage(message),
     });
 
+    const allowReadReceipts = allowReadReceiptsForChat(chat, currentUserId);
+
     return res.json({
       success: true,
       message: reacted ? 'Reaction added' : 'Reaction removed',
       data: {
         reacted,
-        message: toMessage(message.toObject(), currentUserId),
+        message: toMessage(message.toObject(), currentUserId, allowReadReceipts),
       },
     });
   } catch (err) {
@@ -738,17 +771,20 @@ export async function markChatRead(req, res, next) {
       }
     );
 
-    emitToChat(
-      String(chat._id),
-      'message:read:update',
-      {
-        chatId: String(chat._id),
-        readerUserId: String(currentUserId),
-        messageIds: [],
-        readAt: new Date().toISOString(),
-      },
-      String(currentUserId)
-    );
+    const readReceiptsEnabled = env.featureReadReceipts && (req.authUser?.settings?.readReceiptsEnabled ?? true);
+    if (readReceiptsEnabled) {
+      emitToChat(
+        String(chat._id),
+        'message:read:update',
+        {
+          chatId: String(chat._id),
+          readerUserId: String(currentUserId),
+          messageIds: [],
+          readAt: new Date().toISOString(),
+        },
+        String(currentUserId)
+      );
+    }
 
     return res.json({
       success: true,

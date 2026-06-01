@@ -1,7 +1,7 @@
 function PrivacySettings({ settings, onChange, onSave, isSaving }) {
   return (
     <section className="settings-card">
-      <h2>Privacy Settings</h2>
+      <h2>Privacy & Presence</h2>
       <div className="settings-group">
         <label className="settings-row settings-row-toggle">
           <span>Show Online Status</span>
@@ -14,10 +14,22 @@ function PrivacySettings({ settings, onChange, onSave, isSaving }) {
             <span className="toggle-slider" aria-hidden="true" />
           </span>
         </label>
+
+        <label className="settings-row settings-row-toggle">
+          <span>Read Receipts</span>
+          <span className="toggle-switch">
+            <input
+              type="checkbox"
+              checked={Boolean(settings.readReceiptsEnabled)}
+              onChange={(e) => onChange({ readReceiptsEnabled: e.target.checked })}
+            />
+            <span className="toggle-slider" aria-hidden="true" />
+          </span>
+        </label>
       </div>
 
       <div className="settings-group settings-group-divider">
-        <div className="settings-field">
+        <div className="theme-stack">
           <span>Theme Mode</span>
           <div className="theme-segment" role="radiogroup" aria-label="Theme mode">
             {['system', 'light', 'dark'].map((mode) => {
@@ -39,9 +51,11 @@ function PrivacySettings({ settings, onChange, onSave, isSaving }) {
         </div>
       </div>
 
-      <button className="btn-primary" onClick={onSave} disabled={isSaving}>
-        {isSaving ? 'Saving...' : 'Save Settings'}
-      </button>
+      <div className="settings-card-actions settings-card-actions--full">
+        <button className="btn-primary" onClick={onSave} disabled={isSaving}>
+          {isSaving ? 'Saving...' : 'Save Settings'}
+        </button>
+      </div>
     </section>
   );
 }

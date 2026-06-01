@@ -91,6 +91,8 @@ function MessageBubble({
   onBeginReply,
   onDelete,
   onRequestCustomReaction,
+  onJumpToReply,
+  isHighlighted = false,
   autoShowMeta = false,
 }) {
   const canEdit = Boolean(message.isOwn && !message.pending && !message.failed && message.encryptionMode !== 'e2ee');
@@ -376,7 +378,7 @@ function MessageBubble({
   return (
     <div ref={shellRef} className={`message-shell ${message.isOwn ? 'own' : 'other'}`}>
       <div
-        className={`message-bubble ${message.isOwn ? 'own' : 'other'} ${isSelected ? 'selected' : ''} ${hasReactions ? 'has-reactions' : ''}`}
+        className={`message-bubble ${message.isOwn ? 'own' : 'other'} ${isSelected ? 'selected' : ''} ${hasReactions ? 'has-reactions' : ''} ${isHighlighted ? 'reply-highlight' : ''}`}
         style={{ transform: `translateX(${swipeOffset}px)` }}
         onClick={handleBubbleTap}
         onMouseDown={handleMouseDown}
@@ -388,14 +390,22 @@ function MessageBubble({
         onTouchCancel={handleTouchEnd}
       >
         {message.replyTo?.messageId && (
-          <div className="message-reply-preview">
+          <button
+            type="button"
+            className="message-reply-preview"
+            onClick={(event) => {
+              event.stopPropagation();
+              onJumpToReply?.(message.replyTo?.messageId);
+            }}
+            aria-label="Jump to replied message"
+          >
             <strong>Reply</strong>
             <span>
               {formatReplyPreviewText(
                 message.replyTo?.text || (message.replyTo?.encryptionMode === 'e2ee' ? '[Encrypted message]' : '')
               )}
             </span>
-          </div>
+          </button>
         )}
 
         {isImageMessage ? (

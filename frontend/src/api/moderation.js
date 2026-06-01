@@ -19,3 +19,12 @@ export async function getBlockStatus(targetUserId) {
   const response = await api.get(`/moderation/blocks/${targetUserId}/status`);
   return response.data;
 }
+
+export async function reportUser({ username, reason, details }) {
+  const response = await api.post('/moderation/reports', {
+    targetUsername: username,
+    reason,
+    details: details || '',
+  });
+  return response.data;
+}

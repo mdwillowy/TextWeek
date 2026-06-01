@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePrivateImageUrl } from '../../hooks/usePrivateImageUrl';
 
 function ProfileCard({ user, onSaveProfile, onOpenFollowList, isSaving }) {
   const [isEditing, setIsEditing] = useState(false);
+  const fileInputRef = useRef(null);
   const [form, setForm] = useState({
     fullName: user.fullName,
     bio: user.bio || '',
@@ -28,6 +29,38 @@ function ProfileCard({ user, onSaveProfile, onOpenFollowList, isSaving }) {
     await onSaveProfile(form);
     setIsEditing(false);
   }
+
+  function handleAvatarUrlChange(value) {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    setForm((prev) => ({
+      ...prev,
+      avatarUrl: value,
+      avatarFile: null,
+    }));
+  }
+
+  function handleAvatarFileChange(file) {
+    setForm((prev) => ({
+      ...prev,
+      avatarFile: file,
+      avatarUrl: '',
+    }));
+  }
+
+  function clearAvatarInput() {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    setForm((prev) => ({
+      ...prev,
+      avatarUrl: '',
+      avatarFile: null,
+    }));
+  }
+
+  const avatarInputValue = form.avatarFile ? form.avatarFile.name : form.avatarUrl;
 
   const modal = isEditing ? (
     <section className="dashboard-overlay" role="presentation" onClick={() => setIsEditing(false)}>
@@ -71,27 +104,45 @@ function ProfileCard({ user, onSaveProfile, onOpenFollowList, isSaving }) {
             </select>
           </label>
 
-          <label>
-            Avatar URL (optional)
-            <input
-              value={form.avatarUrl}
-              onChange={(e) => setForm((prev) => ({ ...prev, avatarUrl: e.target.value }))}
-              placeholder="https://example.com/avatar.png"
-            />
-          </label>
-
-          <label>
-            Upload avatar from device (optional)
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0] || null;
-                setForm((prev) => ({ ...prev, avatarFile: file }));
-              }}
-            />
+          <label className="avatar-input-block">
+            <span>Avatar (URL or file)</span>
+            <div className="avatar-input-row">
+              <input
+                type="text"
+                value={avatarInputValue}
+                readOnly={Boolean(form.avatarFile)}
+                onChange={(e) => handleAvatarUrlChange(e.target.value)}
+                placeholder="Paste image URL or choose a file"
+              />
+              <input
+                ref={fileInputRef}
+                className="avatar-file-input"
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleAvatarFileChange(e.target.files?.[0] || null)}
+              />
+              <button
+                type="button"
+                className="btn-secondary avatar-file-button"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Choose file
+              </button>
+              {(form.avatarUrl || form.avatarFile) && (
+                <button
+                  type="button"
+                  className="avatar-clear-button"
+                  onClick={clearAvatarInput}
+                  aria-label="Clear avatar input"
+                >
+                  <span aria-hidden="true">x</span>
+                </button>
+              )}
+            </div>
             <small className="search-note">
-              {form.avatarFile ? `Selected: ${form.avatarFile.name}` : 'Max size 2MB. If selected, uploaded file is used.'}
+              {form.avatarFile
+                ? 'Clear to switch back to a URL. Max size 2MB.'
+                : 'Max size 2MB. If a file is selected, it will be used instead of the URL.'}
             </small>
           </label>
 

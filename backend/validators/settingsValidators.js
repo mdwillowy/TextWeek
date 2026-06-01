@@ -1,6 +1,10 @@
 import { body } from 'express-validator';
 
 export const updateSettingsValidator = [
+  body('readReceiptsEnabled')
+    .optional()
+    .isBoolean()
+    .withMessage('readReceiptsEnabled must be a boolean'),
   body('showOnlineStatus')
     .optional()
     .isBoolean()
@@ -11,7 +15,7 @@ export const updateSettingsValidator = [
     .withMessage('theme must be light, dark, or system'),
   body().custom((value) => {
     const keys = Object.keys(value || {});
-    const allowed = ['showOnlineStatus', 'theme'];
+    const allowed = ['readReceiptsEnabled', 'showOnlineStatus', 'theme'];
     const invalid = keys.filter((key) => !allowed.includes(key));
     if (invalid.length > 0) {
       throw new Error(`Unsupported fields: ${invalid.join(', ')}`);
@@ -22,4 +26,26 @@ export const updateSettingsValidator = [
 
 export const requestDeletionValidator = [
   body('password').isString().isLength({ min: 8, max: 128 }).withMessage('password is required'),
+];
+
+export const changePasswordValidator = [
+  body('currentPassword')
+    .isString()
+    .isLength({ min: 8, max: 128 })
+    .withMessage('currentPassword is required'),
+  body('newPassword')
+    .isString()
+    .isLength({ min: 8, max: 128 })
+    .withMessage('newPassword must be at least 8 characters')
+    .matches(/^(?=.*[A-Za-z])(?=.*\d).+$/)
+    .withMessage('newPassword must include at least one letter and one number'),
+  body().custom((value) => {
+    const keys = Object.keys(value || {});
+    const allowed = ['currentPassword', 'newPassword'];
+    const invalid = keys.filter((key) => !allowed.includes(key));
+    if (invalid.length > 0) {
+      throw new Error(`Unsupported fields: ${invalid.join(', ')}`);
+    }
+    return true;
+  }),
 ];

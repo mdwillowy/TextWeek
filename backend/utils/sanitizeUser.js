@@ -17,6 +17,7 @@ export function sanitizeUser(userDoc) {
     isOnline: Boolean(source.isOnline),
     lastSeen: source.lastSeen || null,
     settings: {
+      readReceiptsEnabled: source.settings?.readReceiptsEnabled ?? true,
       showOnlineStatus: source.settings?.showOnlineStatus ?? true,
       theme: source.settings?.theme || 'system',
     },

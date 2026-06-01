@@ -116,6 +116,7 @@ function ChatWindow({ chatId }) {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [hasInitializedScroll, setHasInitializedScroll] = useState(false);
   const [newIncomingCount, setNewIncomingCount] = useState(0);
+  const [highlightMessageId, setHighlightMessageId] = useState('');
   const messageListRef = useRef(null);
   const endRef = useRef(null);
   const typingStopTimerRef = useRef(null);
@@ -123,6 +124,8 @@ function ChatWindow({ chatId }) {
   const textInputRef = useRef(null);
   const chatSendRef = useRef(null);
   const stickToBottomRef = useRef(true);
+  const messageNodeMapRef = useRef(new Map());
+  const highlightTimerRef = useRef(null);
 
   const blockBySelfMessage = 'You blocked this user. Unblock to message.';
   const blockByOtherMessage = 'You were blocked by this user';
@@ -442,6 +445,48 @@ function ChatWindow({ chatId }) {
       }
     };
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+      }
+    };
+  }, []);
+
+  function registerMessageNode(messageId, node) {
+    if (!messageId) return;
+    const key = String(messageId);
+    if (!node) {
+      messageNodeMapRef.current.delete(key);
+      return;
+    }
+    messageNodeMapRef.current.set(key, node);
+  }
+
+  function handleJumpToReply(messageId) {
+    const key = String(messageId || '');
+    if (!key) return;
+
+    const node = messageNodeMapRef.current.get(key);
+    if (!node) {
+      showNotice('Original message is not loaded yet.');
+      return;
+    }
+
+    showNotice('');
+    node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightMessageId(key);
+
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current);
+    }
+
+    highlightTimerRef.current = setTimeout(() => {
+      setHighlightMessageId('');
+    }, 1200);
+  }
+
 
   async function handleLoadOlder() {
     if (clearedAt || !hasMore || !nextBefore || isLoadingOlder) return;
@@ -1050,17 +1095,25 @@ function ChatWindow({ chatId }) {
         {isLoadingOlder && <p className="search-note message-loading-older">Loading older messages...</p>}
         {messages.length === 0 && <p className="search-note">No messages yet. Say hi.</p>}
         {messages.map((msg) => (
-          <MessageBubble
+          <div
             key={msg.id}
-            message={msg}
-            autoShowMeta={Boolean(autoMetaMessageId) && String(msg.id) === autoMetaMessageId}
-            onRetry={handleRetryFailedMessage}
-            onBeginEdit={handleBeginEditMessage}
-            onBeginReply={handleBeginReplyMessage}
-            onDelete={handleDeleteMessage}
-            onReact={handleReactToMessage}
-            onRequestCustomReaction={handleBeginCustomReaction}
-          />
+            ref={(node) => registerMessageNode(msg.id, node)}
+            data-message-id={msg.id}
+            className={`message-row ${msg.isOwn ? 'own' : 'other'}`}
+          >
+            <MessageBubble
+              message={msg}
+              autoShowMeta={Boolean(autoMetaMessageId) && String(msg.id) === autoMetaMessageId}
+              onRetry={handleRetryFailedMessage}
+              onBeginEdit={handleBeginEditMessage}
+              onBeginReply={handleBeginReplyMessage}
+              onDelete={handleDeleteMessage}
+              onReact={handleReactToMessage}
+              onRequestCustomReaction={handleBeginCustomReaction}
+              onJumpToReply={handleJumpToReply}
+              isHighlighted={String(msg.id) === highlightMessageId}
+            />
+          </div>
         ))}
         {newIncomingCount > 0 && (
           <button type="button" className="chat-new-messages-chip" onClick={handleJumpToLatest}>

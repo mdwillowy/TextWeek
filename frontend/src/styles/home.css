@@ -989,6 +989,19 @@ body[data-theme='light'] .chat-page-shell .chat-window {
   height: 0;
 }
 
+.message-row {
+  display: flex;
+  width: 100%;
+}
+
+.message-row.own {
+  justify-content: flex-end;
+}
+
+.message-row.other {
+  justify-content: flex-start;
+}
+
 .message-loading-older {
   margin: 0;
   text-align: center;
@@ -1076,6 +1089,7 @@ body[data-theme='light'] .chat-page-shell .chat-window {
   margin-left: auto;
   background: var(--app-message-own-bg);
   border-color: color-mix(in srgb, var(--app-accent) 34%, var(--app-item-line));
+  --reply-shift: -6px;
 }
 
 .message-bubble small {
@@ -1124,6 +1138,11 @@ body[data-theme='light'] .chat-page-shell .chat-window {
   max-width: 100%;
   justify-self: stretch;
   box-sizing: border-box;
+  text-align: left;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  cursor: pointer;
 }
 
 .message-reply-preview strong {
@@ -1140,6 +1159,38 @@ body[data-theme='light'] .chat-page-shell .chat-window {
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.14;
+}
+
+.message-reply-preview:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.message-reply-preview:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--app-accent) 40%, transparent);
+  outline-offset: 2px;
+}
+
+.message-bubble.other {
+  --reply-shift: 6px;
+}
+
+.message-bubble.reply-highlight {
+  animation: replyFlash 1.2s ease;
+}
+
+@keyframes replyFlash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.18);
+    transform: translateX(0);
+  }
+  45% {
+    box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
+    transform: translateX(var(--reply-shift, 6px));
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(15, 118, 110, 0);
+    transform: translateX(0);
+  }
 }
 
 .message-actions-anchor {
@@ -1805,6 +1856,48 @@ body:not([data-theme='light']) .chat-send.is-editing {
   padding: 0.7rem;
   background: #ffffff;
   color: #1f1f1f;
+}
+
+.profile-modal .avatar-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.profile-modal .avatar-input-row input[type='text'] {
+  flex: 1 1 auto;
+}
+
+.profile-modal .avatar-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.profile-modal .avatar-file-button {
+  white-space: nowrap;
+  padding: 0.6rem 0.8rem;
+}
+
+.profile-modal .avatar-clear-button {
+  border: 1px solid rgba(33, 33, 33, 0.24);
+  background: rgba(255, 255, 255, 0.82);
+  color: #2f3a42;
+  border-radius: 999px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-modal .avatar-clear-button:hover {
+  background: #ffffff;
 }
 
 .profile-modal input[type='file'] {

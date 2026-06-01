@@ -1,21 +1,35 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { connectSocket, disconnectSocket, getSocket } from '../../socket/socketClient';
 import { requestAccountDeletion, updateMySettings } from '../../api/settings';
+import ChangePasswordCard from './ChangePasswordCard';
 import PrivacySettings from './PrivacySettings';
 import DangerZone from './DangerZone';
+import ReportUserCard from './ReportUserCard';
 
 function SettingsPanel({ mode = 'page' }) {
-  const { user, setUser, logoutAll } = useAuth();
-  const [settings, setSettings] = useState(
-    user?.settings || {
-      showOnlineStatus: true,
-      theme: 'system',
-    }
+  const { user, accessToken, setUser, logoutAll } = useAuth();
+  const settingsFromUser = useMemo(
+    () => ({
+      readReceiptsEnabled: user?.settings?.readReceiptsEnabled ?? true,
+      showOnlineStatus: user?.settings?.showOnlineStatus ?? true,
+      theme: user?.settings?.theme || 'system',
+    }),
+    [user?.settings?.readReceiptsEnabled, user?.settings?.showOnlineStatus, user?.settings?.theme]
   );
+  const [settings, setSettings] = useState(settingsFromUser);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoggingOutAll, setIsLoggingOutAll] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const lastSavedRef = useRef(settingsFromUser);
+  const autoSaveTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (!user) return;
+    setSettings(settingsFromUser);
+    lastSavedRef.current = settingsFromUser;
+  }, [user, settingsFromUser]);
 
   if (!user) {
     return <div className="screen-loader">Loading settings...</div>;
@@ -41,15 +55,18 @@ function SettingsPanel({ mode = 'page' }) {
     setSettings((prev) => ({ ...prev, ...next }));
   }
 
-  async function handleSaveSettings() {
+  async function handleSaveSettings(nextSettings = settings) {
+    const previousShowOnlineStatus = user?.settings?.showOnlineStatus ?? true;
+    const previousReadReceipts = user?.settings?.readReceiptsEnabled ?? true;
     setIsSaving(true);
     setMessage('');
     setError('');
 
     try {
       const response = await updateMySettings({
-        showOnlineStatus: settings.showOnlineStatus,
-        theme: settings.theme,
+        readReceiptsEnabled: nextSettings.readReceiptsEnabled,
+        showOnlineStatus: nextSettings.showOnlineStatus,
+        theme: nextSettings.theme,
       });
       const nextUser = response?.data?.user || response?.user;
       setUser((prev) => {
@@ -61,10 +78,22 @@ function SettingsPanel({ mode = 'page' }) {
           settings: {
             ...(previous.settings || {}),
             ...(incoming.settings || {}),
-            ...settings,
+            ...nextSettings,
           },
         };
       });
+      lastSavedRef.current = nextSettings;
+      const presenceChanged = previousShowOnlineStatus !== nextSettings.showOnlineStatus;
+      const readReceiptsChanged = previousReadReceipts !== nextSettings.readReceiptsEnabled;
+      if (presenceChanged || readReceiptsChanged) {
+        const socket = getSocket();
+        if (socket?.connected) {
+          disconnectSocket();
+        }
+        if (accessToken) {
+          connectSocket(accessToken);
+        }
+      }
       setMessage('Settings saved successfully.');
     } catch (err) {
       setError(err?.response?.data?.message || 'Unable to save settings');
@@ -72,6 +101,34 @@ function SettingsPanel({ mode = 'page' }) {
       setIsSaving(false);
     }
   }
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const lastSaved = lastSavedRef.current || {};
+    const isDirty =
+      settings.readReceiptsEnabled !== lastSaved.readReceiptsEnabled ||
+      settings.showOnlineStatus !== lastSaved.showOnlineStatus ||
+      settings.theme !== lastSaved.theme;
+
+    if (!isDirty || isSaving) {
+      return undefined;
+    }
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    autoSaveTimerRef.current = setTimeout(() => {
+      handleSaveSettings(settings);
+    }, 500);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [settings, user, isSaving]);
 
   const rootClassName = mode === 'modal' ? 'dashboard-settings-block' : 'settings-panel';
 
@@ -88,28 +145,35 @@ function SettingsPanel({ mode = 'page' }) {
 
       <div className="settings-section-divider" aria-hidden="true" />
 
-      <section className="settings-card">
-        <h2>Privacy Explainer</h2>
-        <p>Encrypted chats store ciphertext, nonce, AAD, and key metadata. Message plaintext is decrypted in the client.</p>
-        <p>Service metadata still exists for operations: participant IDs, timestamps, and delivery/read state.</p>
-        <p>Retention policy: messages are permanently deleted after 7 days by scheduled cleanup.</p>
-      </section>
+      <ChangePasswordCard />
 
       <div className="settings-section-divider" aria-hidden="true" />
 
       <section className="settings-card">
-        <h2>Session Security</h2>
-        <p>Use this if your account was signed in on another device or browser.</p>
-        <button className="btn-primary" onClick={handleLogoutAllSessions} disabled={isLoggingOutAll}>
-          {isLoggingOutAll ? 'Processing...' : 'Logout All Sessions'}
-        </button>
+        <div className="settings-card-head">
+          <div>
+            <h2>Session Security</h2>
+            <p>Sign out other devices if you suspect a compromised session.</p>
+          </div>
+          <div className="settings-card-actions settings-card-actions--full">
+            <button className="btn-primary" onClick={handleLogoutAllSessions} disabled={isLoggingOutAll}>
+              {isLoggingOutAll ? 'Processing...' : 'Log Out All Sessions'}
+            </button>
+          </div>
+        </div>
       </section>
+
+      <div className="settings-section-divider" aria-hidden="true" />
 
       <DangerZone
         onRequestDeletion={requestAccountDeletion}
         requestedAt={user.deletionRequestedAt}
         actionButtonClassName="btn-primary"
       />
+
+      <div className="settings-section-divider" aria-hidden="true" />
+
+      <ReportUserCard />
     </section>
   );
 }
