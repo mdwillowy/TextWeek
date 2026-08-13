@@ -10,30 +10,36 @@ export async function updateMySettings(req, res, next) {
     const previousShowOnlineStatus = user.settings?.showOnlineStatus ?? true;
 
     const nextReadReceipts = env.featureReadReceipts
-      ? typeof incoming.readReceiptsEnabled === 'boolean'
-        ? incoming.readReceiptsEnabled
-        : user.settings?.readReceiptsEnabled ?? true
+      ? typeof incoming.readReceipts === 'boolean'
+        ? incoming.readReceipts
+        : typeof incoming.readReceiptsEnabled === 'boolean'
+          ? incoming.readReceiptsEnabled
+          : user.settings?.readReceiptsEnabled ?? true
       : user.settings?.readReceiptsEnabled ?? true;
 
+    const nextShowOnlineStatus =
+      typeof incoming.showOnlineStatus === 'boolean'
+        ? incoming.showOnlineStatus
+        : user.settings?.showOnlineStatus ?? true;
+
+    const nextTheme = incoming.themeMode || incoming.theme || user.settings?.theme || 'system';
+    user.isPrivate = typeof incoming.isPrivate === 'boolean' ? incoming.isPrivate : user.isPrivate ?? false;
     user.settings = {
       readReceiptsEnabled: nextReadReceipts,
-      showOnlineStatus:
-        typeof incoming.showOnlineStatus === 'boolean'
-          ? incoming.showOnlineStatus
-          : user.settings?.showOnlineStatus ?? true,
-      theme: incoming.theme || user.settings?.theme || 'system',
+      showOnlineStatus: nextShowOnlineStatus,
+      theme: nextTheme,
     };
 
     await user.save();
 
-    const nextShowOnlineStatus = user.settings?.showOnlineStatus ?? true;
-    if (env.featureOnlineStatus && previousShowOnlineStatus !== nextShowOnlineStatus) {
+    const persistedShowOnlineStatus = user.settings?.showOnlineStatus ?? true;
+    if (env.featureOnlineStatus && previousShowOnlineStatus !== persistedShowOnlineStatus) {
       const io = getIO();
       if (io) {
         io.emit('presence:update', {
           userId: String(user._id),
-          online: nextShowOnlineStatus ? Boolean(user.isOnline) : false,
-          lastSeen: nextShowOnlineStatus ? user.lastSeen || null : null,
+          online: persistedShowOnlineStatus ? Boolean(user.isOnline) : false,
+          lastSeen: persistedShowOnlineStatus ? user.lastSeen || null : null,
         });
       }
     }

@@ -28,10 +28,12 @@ test('settings update validates and persists', async () => {
   const valid = await request(app)
     .patch('/api/users/me/settings')
     .set('Authorization', `Bearer ${user.token}`)
-    .send({ showOnlineStatus: false, theme: 'dark' });
+    .send({ showOnlineStatus: false, readReceipts: false, isPrivate: true, themeMode: 'dark' });
   assert.equal(valid.status, 200);
   assert.equal(valid.body.data.user.settings.theme, 'dark');
   assert.equal(valid.body.data.user.settings.showOnlineStatus, false);
+  assert.equal(valid.body.data.user.settings.readReceiptsEnabled, false);
+  assert.equal(valid.body.data.user.isPrivate, true);
 });
 
 test('account deletion request requires password confirmation', async () => {

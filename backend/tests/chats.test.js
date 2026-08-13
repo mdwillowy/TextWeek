@@ -63,6 +63,40 @@ test('message send requires auth and participant membership', async () => {
   assert.equal(ok.status, 201);
 });
 
+test('private accounts block new direct chats unless a chat already exists', async () => {
+  const app = await initTestApp();
+  const a = await signupAndToken(app, { username: 'private_a' });
+  const b = await signupAndToken(app, { username: 'private_b' });
+
+  const existingChat = await request(app)
+    .post(`/api/chats/direct/${b.user.id}`)
+    .set('Authorization', `Bearer ${a.token}`)
+    .send({});
+  assert.equal(existingChat.status, 200);
+
+  const privateToggle = await request(app)
+    .patch('/api/users/me/settings')
+    .set('Authorization', `Bearer ${b.token}`)
+    .send({ isPrivate: true });
+  assert.equal(privateToggle.status, 200);
+  assert.equal(privateToggle.body.data.user.isPrivate, true);
+
+  const stillAllowed = await request(app)
+    .post(`/api/chats/direct/${b.user.id}`)
+    .set('Authorization', `Bearer ${a.token}`)
+    .send({});
+  assert.equal(stillAllowed.status, 200);
+  assert.equal(stillAllowed.body.data.chat.id, existingChat.body.data.chat.id);
+
+  const c = await signupAndToken(app, { username: 'private_c' });
+  const blocked = await request(app)
+    .post(`/api/chats/direct/${b.user.id}`)
+    .set('Authorization', `Bearer ${c.token}`)
+    .send({});
+  assert.equal(blocked.status, 403);
+  assert.match(String(blocked.body.message || ''), /account is private/i);
+});
+
 test('message send returns directional blocked errors', async () => {
   const app = await initTestApp();
   const a = await signupAndToken(app, { username: 'block_sender_a' });

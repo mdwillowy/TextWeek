@@ -76,6 +76,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isPrivate: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     isOnline: {
       type: Boolean,
       default: false,
@@ -98,6 +103,22 @@ const userSchema = new mongoose.Schema(
         enum: ['light', 'dark', 'system'],
         default: 'system',
       },
+    },
+    devicePushSubscriptions: {
+      type: [
+        {
+          endpoint: { type: String, required: true },
+          expirationTime: { type: Number, default: null },
+          keys: {
+            p256dh: { type: String, required: true },
+            auth: { type: String, required: true },
+          },
+          createdAt: { type: Date, default: Date.now },
+          updatedAt: { type: Date, default: Date.now },
+          userAgent: { type: String, default: '' },
+        },
+      ],
+      default: [],
     },
     deletionRequestedAt: {
       type: Date,

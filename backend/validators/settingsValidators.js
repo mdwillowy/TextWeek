@@ -13,9 +13,25 @@ export const updateSettingsValidator = [
     .optional()
     .isIn(['light', 'dark', 'system'])
     .withMessage('theme must be light, dark, or system'),
+  body('themeMode')
+    .optional()
+    .isIn(['light', 'dark', 'system'])
+    .withMessage('themeMode must be light, dark, or system'),
+  body('readReceipts')
+    .optional()
+    .isBoolean()
+    .withMessage('readReceipts must be a boolean'),
+  body('readReceiptsEnabled')
+    .optional()
+    .isBoolean()
+    .withMessage('readReceiptsEnabled must be a boolean'),
+  body('isPrivate')
+    .optional()
+    .isBoolean()
+    .withMessage('isPrivate must be a boolean'),
   body().custom((value) => {
     const keys = Object.keys(value || {});
-    const allowed = ['readReceiptsEnabled', 'showOnlineStatus', 'theme'];
+    const allowed = ['readReceipts', 'readReceiptsEnabled', 'showOnlineStatus', 'theme', 'themeMode', 'isPrivate'];
     const invalid = keys.filter((key) => !allowed.includes(key));
     if (invalid.length > 0) {
       throw new Error(`Unsupported fields: ${invalid.join(', ')}`);

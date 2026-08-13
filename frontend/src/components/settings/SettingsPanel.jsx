@@ -1,7 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { connectSocket, disconnectSocket, getSocket } from '../../socket/socketClient';
 import { requestAccountDeletion, updateMySettings } from '../../api/settings';
+import {
+  getActivePushSubscription,
+  getNotificationPermissionState,
+  subscribeToTextweekPush,
+  supportsBrowserPush,
+  unsubscribeFromTextweekPush,
+} from '../../services/textweekPushManager';
 import ChangePasswordCard from './ChangePasswordCard';
 import PrivacySettings from './PrivacySettings';
 import DangerZone from './DangerZone';
@@ -14,21 +21,41 @@ function SettingsPanel({ mode = 'page' }) {
       readReceiptsEnabled: user?.settings?.readReceiptsEnabled ?? true,
       showOnlineStatus: user?.settings?.showOnlineStatus ?? true,
       theme: user?.settings?.theme || 'system',
+      isPrivate: Boolean(user?.isPrivate),
     }),
-    [user?.settings?.readReceiptsEnabled, user?.settings?.showOnlineStatus, user?.settings?.theme]
+    [user?.settings?.readReceiptsEnabled, user?.settings?.showOnlineStatus, user?.settings?.theme, user?.isPrivate]
   );
   const [settings, setSettings] = useState(settingsFromUser);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoggingOutAll, setIsLoggingOutAll] = useState(false);
+  const [isTogglingPush, setIsTogglingPush] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const lastSavedRef = useRef(settingsFromUser);
-  const autoSaveTimerRef = useRef(null);
+
+  useEffect(() => {
+    async function syncPushState() {
+      if (!supportsBrowserPush()) {
+        setPushEnabled(false);
+        return;
+      }
+
+      const permissionState = getNotificationPermissionState();
+      if (permissionState !== 'granted') {
+        setPushEnabled(false);
+        return;
+      }
+
+      const activeSubscription = await getActivePushSubscription();
+      setPushEnabled(Boolean(activeSubscription));
+    }
+
+    void syncPushState();
+  }, []);
 
   useEffect(() => {
     if (!user) return;
     setSettings(settingsFromUser);
-    lastSavedRef.current = settingsFromUser;
   }, [user, settingsFromUser]);
 
   if (!user) {
@@ -51,38 +78,83 @@ function SettingsPanel({ mode = 'page' }) {
     }
   }
 
-  function handleChange(next) {
-    setSettings((prev) => ({ ...prev, ...next }));
+  async function handleTogglePushNotifications() {
+    if (!supportsBrowserPush()) {
+      setError('This browser does not support push notifications.');
+      return;
+    }
+
+    setMessage('');
+    setError('');
+    setIsTogglingPush(true);
+
+    try {
+      if (pushEnabled) {
+        const removed = await unsubscribeFromTextweekPush();
+        if (removed) {
+          setPushEnabled(false);
+          setMessage('Browser notifications disabled.');
+        } else {
+          setError('No browser notification subscription was active.');
+        }
+        return;
+      }
+
+      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      await subscribeToTextweekPush({ vapidPublicKey });
+      setPushEnabled(true);
+      setMessage('Browser notifications enabled.');
+    } catch (err) {
+      setError(err?.message || 'Unable to update browser notifications.');
+    } finally {
+      setIsTogglingPush(false);
+    }
   }
 
   async function handleSaveSettings(nextSettings = settings) {
     const previousShowOnlineStatus = user?.settings?.showOnlineStatus ?? true;
     const previousReadReceipts = user?.settings?.readReceiptsEnabled ?? true;
+    const nextPayload = {
+      showOnlineStatus: Boolean(nextSettings.showOnlineStatus),
+      readReceipts: Boolean(nextSettings.readReceiptsEnabled ?? nextSettings.readReceipts),
+      isPrivate: Boolean(nextSettings.isPrivate),
+      themeMode: nextSettings.theme || nextSettings.themeMode || 'system',
+    };
     setIsSaving(true);
     setMessage('');
     setError('');
 
     try {
-      const response = await updateMySettings({
-        readReceiptsEnabled: nextSettings.readReceiptsEnabled,
-        showOnlineStatus: nextSettings.showOnlineStatus,
-        theme: nextSettings.theme,
-      });
-      const nextUser = response?.data?.user || response?.user;
-      setUser((prev) => {
-        const previous = prev || {};
-        const incoming = nextUser || {};
-        return {
-          ...previous,
-          ...incoming,
-          settings: {
+      const response = await updateMySettings(nextPayload);
+      const nextUser = response?.data?.user || response?.user || null;
+
+      if (nextUser) {
+        setUser((prev) => {
+          const previous = prev || {};
+          const incoming = nextUser || {};
+          const mergedSettings = {
             ...(previous.settings || {}),
             ...(incoming.settings || {}),
-            ...nextSettings,
-          },
-        };
-      });
-      lastSavedRef.current = nextSettings;
+            readReceiptsEnabled:
+              incoming.settings?.readReceiptsEnabled ??
+              previous.settings?.readReceiptsEnabled ??
+              Boolean(nextSettings.readReceiptsEnabled ?? nextSettings.readReceipts),
+            showOnlineStatus:
+              incoming.settings?.showOnlineStatus ??
+              previous.settings?.showOnlineStatus ??
+              Boolean(nextSettings.showOnlineStatus),
+            theme: incoming.settings?.theme ?? previous.settings?.theme ?? (nextSettings.theme || 'system'),
+          };
+
+          return {
+            ...previous,
+            ...incoming,
+            isPrivate: Boolean(incoming.isPrivate ?? previous.isPrivate ?? nextSettings.isPrivate),
+            settings: mergedSettings,
+          };
+        });
+      }
+
       const presenceChanged = previousShowOnlineStatus !== nextSettings.showOnlineStatus;
       const readReceiptsChanged = previousReadReceipts !== nextSettings.readReceiptsEnabled;
       if (presenceChanged || readReceiptsChanged) {
@@ -94,7 +166,7 @@ function SettingsPanel({ mode = 'page' }) {
           connectSocket(accessToken);
         }
       }
-      setMessage('Settings saved successfully.');
+      setMessage('Settings updated.');
     } catch (err) {
       setError(err?.response?.data?.message || 'Unable to save settings');
     } finally {
@@ -102,39 +174,41 @@ function SettingsPanel({ mode = 'page' }) {
     }
   }
 
-  useEffect(() => {
-    if (!user) return undefined;
-
-    const lastSaved = lastSavedRef.current || {};
-    const isDirty =
-      settings.readReceiptsEnabled !== lastSaved.readReceiptsEnabled ||
-      settings.showOnlineStatus !== lastSaved.showOnlineStatus ||
-      settings.theme !== lastSaved.theme;
-
-    if (!isDirty || isSaving) {
-      return undefined;
-    }
-
-    if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current);
-    }
-
-    autoSaveTimerRef.current = setTimeout(() => {
-      handleSaveSettings(settings);
-    }, 500);
-
-    return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
-    };
-  }, [settings, user, isSaving]);
+  function handleChange(next) {
+    const nextSettings = { ...settings, ...next };
+    setSettings(nextSettings);
+    void handleSaveSettings(nextSettings);
+  }
 
   const rootClassName = mode === 'modal' ? 'dashboard-settings-block' : 'settings-panel';
 
   return (
     <section className={rootClassName}>
-      <PrivacySettings settings={settings} onChange={handleChange} onSave={handleSaveSettings} isSaving={isSaving} />
+      <PrivacySettings settings={settings} onChange={handleChange} isSaving={isSaving} />
+
+      <section className="settings-card">
+        <div className="settings-card-head settings-card-head--inline-status">
+          <h2>Browser Notifications</h2>
+          <span className={`settings-notification-status ${pushEnabled ? 'is-enabled' : 'is-disabled'}`} aria-live="polite">
+            <span className="settings-notification-status-dot" aria-hidden="true" />
+            {pushEnabled ? 'On' : 'Off'}
+          </span>
+        </div>
+
+        <div className="settings-card-head settings-card-head--compact">
+          <p>Receive native browser alerts when someone sends you a direct message while the app is in the background.</p>
+          <div className="settings-card-actions settings-card-actions--inline">
+            <button
+              className="btn-primary btn-primary--thin"
+              onClick={handleTogglePushNotifications}
+              disabled={isTogglingPush}
+              type="button"
+            >
+              {isTogglingPush ? 'Updating...' : pushEnabled ? 'Disable Notifications' : 'Enable Notifications'}
+            </button>
+          </div>
+        </div>
+      </section>
 
       {(message || error) && (
         <section className="settings-card">

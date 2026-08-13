@@ -5,6 +5,7 @@ import { User } from '../models/User.js';
 import { buildParticipantKey, sortParticipantIds } from '../utils/chatParticipant.js';
 import { getBlockRelationship, isBlockedEitherWay } from '../utils/blocking.js';
 import { normalizeEncryptionPayload } from '../services/encryptionService.js';
+import { sendTextweekPushNotification } from '../services/textweekPushService.js';
 import { emitToChat, emitToUser } from '../socket/index.js';
 import { env } from '../config/env.js';
 
@@ -193,6 +194,61 @@ async function assertCanSendInDirectChat(chat, currentUserId) {
   return { otherUserId };
 }
 
+function isPushSubscriptionExpiredError(err) {
+  if (!err) return false;
+
+  const statusCode = Number(err.statusCode || err?.response?.status || 0);
+  const message = String(err.message || err?.response?.data?.message || '');
+
+  return statusCode === 404 || statusCode === 410 || /expired|gone|no longer valid|not found/i.test(message);
+}
+
+async function triggerDirectMessagePush(receiverUserId, senderUsername, senderUserId) {
+  if (!receiverUserId || !senderUsername) return;
+
+  const receiverUser = await User.findById(receiverUserId).select('username devicePushSubscriptions');
+  if (!receiverUser || !Array.isArray(receiverUser.devicePushSubscriptions) || receiverUser.devicePushSubscriptions.length === 0) {
+    return;
+  }
+
+  const payload = {
+    notification: {
+      title: 'TextWeek Message',
+      body: `New message from ${senderUsername}`,
+    },
+  };
+
+  const remainingSubscriptions = [];
+
+  for (const subscription of receiverUser.devicePushSubscriptions) {
+    const subscriptionCopy = { ...subscription.toObject?.() || subscription };
+    try {
+      await sendTextweekPushNotification(
+        { _id: receiverUser._id, devicePushSubscriptions: [subscriptionCopy] },
+        payload
+      );
+      remainingSubscriptions.push(subscriptionCopy);
+    } catch (err) {
+      if (isPushSubscriptionExpiredError(err)) {
+        console.warn('[TextWeek Push] Expired subscription removed', {
+          userId: String(receiverUser._id),
+          senderUserId: String(senderUserId),
+          endpoint: subscriptionCopy.endpoint,
+          reason: err?.message || 'expired',
+        });
+        continue;
+      }
+
+      remainingSubscriptions.push(subscriptionCopy);
+    }
+  }
+
+  if (remainingSubscriptions.length !== receiverUser.devicePushSubscriptions.length) {
+    receiverUser.devicePushSubscriptions = remainingSubscriptions;
+    await receiverUser.save();
+  }
+}
+
 export async function createOrOpenDirectChat(req, res, next) {
   try {
     const currentUserId = req.authUser._id;
@@ -203,7 +259,7 @@ export async function createOrOpenDirectChat(req, res, next) {
     }
 
     const otherUser = await User.findById(otherUserId).select(
-      'fullName username avatarUrl bio isOnline lastSeen settings.showOnlineStatus settings.readReceiptsEnabled'
+      'fullName username avatarUrl bio isPrivate isOnline lastSeen settings.showOnlineStatus settings.readReceiptsEnabled'
     );
     if (!otherUser) {
       return res.status(404).json({ success: false, message: 'User not found' });
@@ -217,7 +273,7 @@ export async function createOrOpenDirectChat(req, res, next) {
       'fullName username avatarUrl bio isOnline lastSeen settings.showOnlineStatus settings.readReceiptsEnabled'
     );
 
-    // Keep existing chats accessible even when users are blocked.
+    // Keep existing chats accessible even when users are blocked or private.
     if (chat) {
       return res.json({
         success: true,
@@ -225,6 +281,10 @@ export async function createOrOpenDirectChat(req, res, next) {
           chat: toChatDTO(chat, currentUserId),
         },
       });
+    }
+
+    if (otherUser.isPrivate) {
+      return res.status(403).json({ success: false, message: 'Account is private' });
     }
 
     const blocked = await isBlockedEitherWay(currentUserId, otherUserId);
@@ -453,6 +513,11 @@ export async function sendMessage(req, res, next) {
       message: toRealtimeMessage(message),
     });
 
+    const senderUser = await User.findById(currentUserId).select('username');
+    if (senderUser) {
+      await triggerDirectMessagePush(otherUserId, senderUser.username || 'Someone', currentUserId);
+    }
+
     const allowReadReceipts = allowReadReceiptsForChat(chat, currentUserId);
 
     return res.status(201).json({
@@ -541,6 +606,11 @@ export async function uploadChatImage(req, res, next) {
       chatId: String(chat._id),
       message: toRealtimeMessage(message),
     });
+
+    const senderUser = await User.findById(currentUserId).select('username');
+    if (senderUser) {
+      await triggerDirectMessagePush(otherUserId, senderUser.username || 'Someone', currentUserId);
+    }
 
     const allowReadReceipts = allowReadReceiptsForChat(chat, currentUserId);
 

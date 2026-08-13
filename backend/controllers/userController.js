@@ -66,10 +66,11 @@ export async function searchUsers(req, res, next) {
     const users = await User.find({
       username: { $regex: safeUsername, $options: 'i' },
       _id: { $ne: currentUserId },
+      isPrivate: { $ne: true },
     })
       .sort({ username: 1 })
       .limit(20)
-      .select('fullName username avatarUrl followersCount followingCount bio gender dateOfBirth phoneNumber isPhoneVerified isOnline lastSeen settings.showOnlineStatus createdAt updatedAt');
+      .select('fullName username avatarUrl followersCount followingCount bio gender dateOfBirth phoneNumber isPhoneVerified isPrivate isOnline lastSeen settings.showOnlineStatus createdAt updatedAt');
 
     const userIds = users.map((user) => user._id);
     const followRows = await Follow.find({
@@ -132,6 +133,94 @@ export async function uploadMyAvatar(req, res, next) {
       data: {
         user: sanitizeUser(req.authUser),
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function subscribeToPushNotifications(req, res, next) {
+  try {
+    const user = req.authUser;
+    const subscription = req.body || {};
+
+    if (!subscription || !subscription.endpoint || !subscription.keys || !subscription.keys.p256dh || !subscription.keys.auth) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid push subscription payload is required',
+      });
+    }
+
+    const normalizedSubscription = {
+      endpoint: String(subscription.endpoint),
+      expirationTime: subscription.expirationTime ?? null,
+      keys: {
+        p256dh: String(subscription.keys.p256dh),
+        auth: String(subscription.keys.auth),
+      },
+      userAgent: String(req.headers['user-agent'] || ''),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const existingIndex = user.devicePushSubscriptions.findIndex(
+      (item) => String(item.endpoint) === normalizedSubscription.endpoint
+    );
+
+    if (existingIndex >= 0) {
+      user.devicePushSubscriptions[existingIndex] = normalizedSubscription;
+    } else {
+      user.devicePushSubscriptions.push(normalizedSubscription);
+    }
+
+    await user.save();
+
+    console.log('[TextWeek Push] Subscription added', {
+      userId: String(user._id),
+      endpoint: normalizedSubscription.endpoint,
+      count: user.devicePushSubscriptions.length,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Push subscription saved',
+      data: { count: user.devicePushSubscriptions.length },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function unsubscribeFromPushNotifications(req, res, next) {
+  try {
+    const user = req.authUser;
+    const subscription = req.body || {};
+    const endpoint = subscription?.endpoint ? String(subscription.endpoint) : '';
+
+    if (!endpoint) {
+      return res.status(400).json({
+        success: false,
+        message: 'Subscription endpoint is required',
+      });
+    }
+
+    const beforeCount = user.devicePushSubscriptions.length;
+    user.devicePushSubscriptions = user.devicePushSubscriptions.filter(
+      (item) => String(item.endpoint) !== endpoint
+    );
+
+    await user.save();
+
+    console.log('[TextWeek Push] Subscription removed', {
+      userId: String(user._id),
+      endpoint,
+      removedCount: beforeCount - user.devicePushSubscriptions.length,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Push subscription removed',
+      data: { count: user.devicePushSubscriptions.length },
     });
   } catch (err) {
     next(err);

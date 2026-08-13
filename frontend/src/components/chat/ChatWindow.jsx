@@ -17,7 +17,7 @@ import { decryptInboundMessage, prepareOutboundMessage } from '../../services/e2
 import { getChatClearTimestamp, isMessageVisibleAfterClear, restoreChatInStackForUser } from '../../utils/chatClearance';
 import MessageBubble from './MessageBubble';
 
-const MAX_CHAT_IMAGE_BYTES = 2 * 1024 * 1024;
+const MAX_CHAT_IMAGE_BYTES = 3 * 1024 * 1024;
 
 function isUploadImageMessage(text) {
   return /^\/uploads\/[\w.-]+\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(String(text || '').trim());
@@ -170,6 +170,30 @@ function ChatWindow({ chatId }) {
       readBy,
     };
   }, [myUserId]);
+
+  const joinCurrentChat = useCallback(() => {
+    const socket = getSocket();
+    if (!socket || !chatId) return;
+
+    socket.emit('chat:join', { chatId });
+    socket.emit('message:read', { chatId });
+  }, [chatId]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return undefined;
+
+    const handleConnect = () => {
+      joinCurrentChat();
+    };
+
+    socket.on('connect', handleConnect);
+    joinCurrentChat();
+
+    return () => {
+      socket.off('connect', handleConnect);
+    };
+  }, [joinCurrentChat]);
 
   useEffect(() => {
     restoreChatInStackForUser(myUserId, chatId);

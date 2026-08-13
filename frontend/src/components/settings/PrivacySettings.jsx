@@ -1,4 +1,4 @@
-function PrivacySettings({ settings, onChange, onSave, isSaving }) {
+function PrivacySettings({ settings, onChange }) {
   return (
     <section className="settings-card">
       <h2>Privacy & Presence</h2>
@@ -22,6 +22,18 @@ function PrivacySettings({ settings, onChange, onSave, isSaving }) {
               type="checkbox"
               checked={Boolean(settings.readReceiptsEnabled)}
               onChange={(e) => onChange({ readReceiptsEnabled: e.target.checked })}
+            />
+            <span className="toggle-slider" aria-hidden="true" />
+          </span>
+        </label>
+
+        <label className="settings-row settings-row-toggle">
+          <span>Private Account</span>
+          <span className="toggle-switch">
+            <input
+              type="checkbox"
+              checked={Boolean(settings.isPrivate)}
+              onChange={(e) => onChange({ isPrivate: e.target.checked })}
             />
             <span className="toggle-slider" aria-hidden="true" />
           </span>
@@ -51,11 +63,6 @@ function PrivacySettings({ settings, onChange, onSave, isSaving }) {
         </div>
       </div>
 
-      <div className="settings-card-actions settings-card-actions--full">
-        <button className="btn-primary" onClick={onSave} disabled={isSaving}>
-          {isSaving ? 'Saving...' : 'Save Settings'}
-        </button>
-      </div>
     </section>
   );
 }

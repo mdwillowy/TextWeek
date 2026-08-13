@@ -1,5 +1,12 @@
 import { Router } from 'express';
-import { getMyProfile, searchUsers, updateMyProfile, uploadMyAvatar } from '../controllers/userController.js';
+import {
+  getMyProfile,
+  searchUsers,
+  subscribeToPushNotifications,
+  unsubscribeFromPushNotifications,
+  updateMyProfile,
+  uploadMyAvatar,
+} from '../controllers/userController.js';
 import { changeMyPassword, requestAccountDeletion, updateMySettings } from '../controllers/settingsController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { validateRequest } from '../middleware/validateRequest.js';
@@ -17,6 +24,8 @@ router.patch('/me/settings', updateSettingsValidator, validateRequest, updateMyS
 router.post('/me/change-password', changePasswordValidator, validateRequest, changeMyPassword);
 router.post('/me/request-deletion', requestDeletionValidator, validateRequest, requestAccountDeletion);
 router.post('/me/avatar', avatarUpload.single('avatar'), uploadMyAvatar);
+router.post('/me/push/subscribe', subscribeToPushNotifications);
+router.post('/me/push/unsubscribe', unsubscribeFromPushNotifications);
 router.get('/search', searchLimiter, searchUsersValidator, validateRequest, searchUsers);
 
 export default router;

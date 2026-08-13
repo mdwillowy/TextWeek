@@ -104,6 +104,9 @@ export const env = {
   cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
   cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || '',
   cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || '',
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY || '',
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
+  vapidContactEmail: process.env.VAPID_CONTACT_EMAIL || 'mailto:admin@example.com',
 
   rateLimitAuthWindowMs: toNumber(process.env.RATE_LIMIT_AUTH_WINDOW_MS, 15 * 60 * 1000),
   rateLimitAuthMax: toNumber(process.env.RATE_LIMIT_AUTH_MAX, 30),

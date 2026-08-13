@@ -14,6 +14,7 @@ export function sanitizeUser(userDoc) {
     followersCount: source.followersCount || 0,
     followingCount: source.followingCount || 0,
     isPhoneVerified: Boolean(source.isPhoneVerified),
+    isPrivate: Boolean(source.isPrivate),
     isOnline: Boolean(source.isOnline),
     lastSeen: source.lastSeen || null,
     settings: {

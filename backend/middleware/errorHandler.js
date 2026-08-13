@@ -25,7 +25,7 @@ export function errorHandler(err, req, res, next) {
 
   if (err.code === 'LIMIT_FILE_SIZE') {
     const isAvatarUpload = req.originalUrl?.includes('/users/me/avatar');
-    const uploadLimitMessage = isAvatarUpload ? 'Avatar file must be 2MB or smaller' : 'Image file must be 2MB or smaller';
+    const uploadLimitMessage = isAvatarUpload ? 'Avatar file must be 3MB or smaller' : 'Image file must be 3MB or smaller';
 
     return res.status(400).json({
       success: false,

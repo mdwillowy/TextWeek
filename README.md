@@ -68,6 +68,13 @@ npm test
 - Avatar and chat image uploads are stored in Cloudinary; MongoDB stores the public HTTPS URL.
 - When a user uploads a new avatar, the old Cloudinary image is deleted automatically.
 - Encrypted chats block image attachments.
+- Upload cap is 3MB per image. The limit is enforced in backend middleware and mirrored in the client-side messaging/UI constraints.
+
+To change the limit later:
+- Backend: [backend/middleware/uploadMiddleware.js](backend/middleware/uploadMiddleware.js)
+- Backend error text: [backend/middleware/errorHandler.js](backend/middleware/errorHandler.js)
+- Frontend chat limit: [frontend/src/components/chat/ChatWindow.jsx](frontend/src/components/chat/ChatWindow.jsx)
+- Frontend avatar note: [frontend/src/components/profile/ProfileCard.jsx](frontend/src/components/profile/ProfileCard.jsx)
 
 ### Required Backend Env Vars
 ```bash
@@ -75,6 +82,36 @@ CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 ```
+
+## Browser Push Notifications (Web Push)
+TextWeek includes native browser notifications for direct messages when a user is not actively viewing the app.
+
+### Flow
+1. User opens Settings and enables notifications.
+2. Browser requests permission and subscribes with the VAPID public key.
+3. Browser sends the subscription to `POST /api/users/me/push/subscribe`.
+4. When a direct message is sent, the backend checks the receiver's saved subscriptions and sends a generic notification payload.
+5. The browser service worker receives the push event and shows a native OS notification.
+6. Clicking the notification opens or focuses the app window.
+
+### Important implementation notes
+- The notification payload is intentionally generic only: `{ notification: { title, body } }`.
+- Encrypted chat content is never sent to push services.
+- Expired or stale browser subscriptions are removed automatically on send failure.
+- The service worker lives at `frontend/public/textweek-sw.js`.
+
+### Required Production Env Vars
+```bash
+# Backend
+VAPID_PUBLIC_KEY=your_vapid_public_key
+VAPID_PRIVATE_KEY=your_vapid_private_key
+VAPID_CONTACT_EMAIL=mailto:you@example.com
+
+# Frontend
+VITE_VAPID_PUBLIC_KEY=your_vapid_public_key
+```
+
+Deployments must use HTTPS/TLS for browser push to work in production.
 
 ## E2EE Path (MVP)
 For direct chats with encryption enabled:

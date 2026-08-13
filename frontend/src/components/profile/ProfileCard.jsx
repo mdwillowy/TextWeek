@@ -141,8 +141,8 @@ function ProfileCard({ user, onSaveProfile, onOpenFollowList, isSaving }) {
             </div>
             <small className="search-note">
               {form.avatarFile
-                ? 'Clear to switch back to a URL. Max size 2MB.'
-                : 'Max size 2MB. If a file is selected, it will be used instead of the URL.'}
+                ? 'Clear to switch back to a URL. Max size 3MB.'
+                : 'Max size 3MB. If a file is selected, it will be used instead of the URL.'}
             </small>
           </label>
 

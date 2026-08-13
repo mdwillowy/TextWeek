@@ -20,6 +20,8 @@ function fileFilter(_req, file, cb) {
   cb(null, true);
 }
 
+const MAX_IMAGE_UPLOAD_BYTES = 3 * 1024 * 1024;
+
 function createImageUpload(fileSizeBytes) {
   return multer({
     storage,
@@ -30,5 +32,5 @@ function createImageUpload(fileSizeBytes) {
   });
 }
 
-export const avatarUpload = createImageUpload(2 * 1024 * 1024);
-export const chatImageUpload = createImageUpload(2 * 1024 * 1024);
+export const avatarUpload = createImageUpload(MAX_IMAGE_UPLOAD_BYTES);
+export const chatImageUpload = createImageUpload(MAX_IMAGE_UPLOAD_BYTES);
